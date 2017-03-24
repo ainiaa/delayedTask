@@ -1,10 +1,16 @@
 package com.a91coding.delayedtask;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -15,10 +21,31 @@ import android.view.MenuItem;
 import com.a91coding.delayedtask.model.AppInfo;
 import com.a91coding.delayedtask.service.LongRunningService;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final int GET_MKDIR_GRANT = 1;
+    private static String logPath = "";
+
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE};
+
+    public static void verifyStoragePermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(activity, PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,8 +62,14 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
-        Intent intent = new Intent(this, LongRunningService.class);
+
+
+        ActivityCompat.requestPermissions(MainActivity.this, new String[]{android
+                .Manifest.permission.WRITE_EXTERNAL_STORAGE}, GET_MKDIR_GRANT);
+
+        Intent intent = new Intent(MainActivity.this, LongRunningService.class);
         startService(intent);
+
 //        getAppList();
     }
 
@@ -67,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
 
         List<PackageInfo> packages = getPackageManager().getInstalledPackages(0);
 
-        for(int i=0;i<packages.size();i++) {
+        for (int i = 0; i < packages.size(); i++) {
             PackageInfo packageInfo = packages.get(i);
             AppInfo tmpInfo = new AppInfo();
             tmpInfo.setAppname(packageInfo.applicationInfo.loadLabel(getPackageManager()).toString());
@@ -79,5 +112,20 @@ public class MainActivity extends AppCompatActivity {
             Log.w("appInfo", tmpInfo.toString());
         }
         return appList;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        //super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        Log.e("onRequest", String.valueOf(requestCode));
+        switch (requestCode) {
+            case GET_MKDIR_GRANT:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //创建文件夹
+                    logPath = Environment.getExternalStorageDirectory() + File.pathSeparator + "testlog";
+                    break;
+                }
+        }
     }
 }

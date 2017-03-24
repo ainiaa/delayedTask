@@ -10,9 +10,10 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
 
+import com.a91coding.delayedtask.util.FileLogWriter;
 import com.a91coding.delayedtask.util.TimeHelper;
 
-import java.util.Date;
+import java.io.IOException;
 
 public class LongRunningService extends Service {
     public LongRunningService() {
@@ -27,11 +28,12 @@ public class LongRunningService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         new Thread(new MyRunnable(this)).start();
         AlarmManager manager = (AlarmManager) getSystemService(ALARM_SERVICE);
-        int period = 30 * 60 * 1000; // 这是30分钟的毫秒数
+        int period = 1 * 60 * 1000; // 这是30分钟的毫秒数
         long triggerAtTime = SystemClock.elapsedRealtime() + period;
         Intent i = new Intent(this, AlarmReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(this, 0, i, 0);
         manager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAtTime, pi);
+        FileLogWriter.testLog("onStartCommand");
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -40,8 +42,10 @@ public class LongRunningService extends Service {
         wifiManager.setWifiEnabled(enabled);
         if (enabled) {
             Log.e("switchWifi", "enabled");
+            FileLogWriter.testLog("switchWifi:enabled 开启");
         } else {
             Log.e("switchWifi", "disabled");
+            FileLogWriter.testLog("switchWifi:disabled  关闭");
         }
     }
 
@@ -52,12 +56,17 @@ public class LongRunningService extends Service {
         String currentTime = TimeHelper.getCurrentTime(pattern);
         String firstTime = "08:20:00";
         String secondTime = "22:00:00";
+        int timeCompare1 = TimeHelper.timeCompare(currentTime, firstTime, pattern);
+        int timeCompare2 = TimeHelper.timeCompare(currentTime, secondTime, pattern);
         Log.e("currentTime", currentTime);
-        Log.e("timeCompare1", String.valueOf(TimeHelper.timeCompare(currentTime, firstTime, pattern)));
-        Log.e("timeCompare2", String.valueOf(TimeHelper.timeCompare(currentTime, secondTime, pattern)));
-        if (TimeHelper.timeCompare(currentTime, firstTime, pattern) >= 0 && TimeHelper.timeCompare(currentTime, secondTime, pattern) < 0) {
+        Log.e("timeCompare1", String.valueOf(timeCompare1));
+        Log.e("timeCompare2", String.valueOf(timeCompare2));
+        FileLogWriter.testLog("timeCompare1:" + String.valueOf(timeCompare1));
+        FileLogWriter.testLog("timeCompare2:" + String.valueOf(timeCompare2));
+        if (timeCompare1 >= 0 && timeCompare2 < 0) {
             enabled = true;
         }
+        FileLogWriter.testLog("enabled:" + String.valueOf(enabled));
         return enabled;
     }
 }

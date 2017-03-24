@@ -33,7 +33,7 @@ public class TimeHelper {
                 Log.v("hi","小于两天");
             }
             */
-            long r =  firstDateTime.getTime() - secondDateTime.getTime();
+            long r = firstDateTime.getTime() - secondDateTime.getTime();
             if (r > 0) {
                 result = 1;
             } else if (r < 0) {
@@ -47,7 +47,7 @@ public class TimeHelper {
         return result;
     }
 
-    public static int timeCompare(String date1, String date2) {
-        return timeCompare(date1, date2, "yyyy/MM/dd HH:mm:ss");
+    public static int timeCompare(String firstTime, String secondTime) {
+        return timeCompare(firstTime, secondTime, "yyyy/MM/dd HH:mm:ss");
     }
 }
