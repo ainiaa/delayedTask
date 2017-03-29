@@ -10,16 +10,17 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
 
+import com.a91coding.delayedTask.model.TaskData;
 import com.a91coding.delayedTask.util.FileLogWriter;
 import com.a91coding.delayedTask.util.TimeHelper;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 public class LongRunningService extends Service {
-    public LongRunningService() {
-    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -30,7 +31,7 @@ public class LongRunningService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         new Thread(new MyRunnable(this)).start();
         AlarmManager manager = (AlarmManager) getSystemService(ALARM_SERVICE);
-        int period = 1 * 60 * 1000; // 这是30分钟的毫秒数
+        int period = 10 * 60 * 1000; // 这是30分钟的毫秒数
         long triggerAtTime = SystemClock.elapsedRealtime() + period;
         Intent i = new Intent(this, AlarmReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(this, 0, i, 0);
@@ -38,61 +39,27 @@ public class LongRunningService extends Service {
         FileLogWriter.testLog("onStartCommand");
         return super.onStartCommand(intent, flags, startId);
     }
+}
 
-    public void switchWifi(boolean enabled) {
-        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        wifiManager.setWifiEnabled(enabled);
-        if (enabled) {
-            Log.e("switchWifi", "enabled");
-            FileLogWriter.testLog("switchWifi:enabled 开启");
-        } else {
-            Log.e("switchWifi", "disabled");
-            FileLogWriter.testLog("switchWifi:disabled  关闭");
-        }
-    }
+class MyRunnable implements Runnable {
 
-    public String getStartTime() {
-        return "08:20:00";
-    }
-
-    public String getEndTime() {
-        return "22:00:00";
-    }
-
-    public boolean needEnableWIFI() {
-        boolean enabled = false;
-        String dayOfWeek = String.valueOf(dayOfWeek());
-        String[] cycle = getCycle();
-        if (verifyCycle(dayOfWeek, cycle)) { //日期符合条件
-            // 8:10 ~22:00 开启WIFI
-            String pattern = "HH:mm:ss";
-            String currentTime = TimeHelper.getCurrentTime(pattern);
-            String firstTime = "08:20:00";
-            String secondTime = "22:00:00";
-            int timeCompare1 = TimeHelper.timeCompare(currentTime, firstTime, pattern);
-            int timeCompare2 = TimeHelper.timeCompare(currentTime, secondTime, pattern);
-            Log.e("currentTime", currentTime);
-            Log.e("timeCompare1", String.valueOf(timeCompare1));
-            Log.e("timeCompare2", String.valueOf(timeCompare2));
-            FileLogWriter.testLog("timeCompare1:" + String.valueOf(timeCompare1));
-            if (timeCompare1 >= 0 && timeCompare2 < 0) {
-                enabled = true;
-            }
-            FileLogWriter.testLog("enabled:" + String.valueOf(enabled));
-        } else {
-            FileLogWriter.testLog("cycle invalid current dayOfWeek:" + dayOfWeek);
-        }
-        return enabled;
-    }
+    public static final int MONDAY_INDEX_OF_WEEK = 2;
+    public static final int FRIDAY_INDEX_OF_WEEK = 6;
+    private LongRunningService longRunningService;
 
     /**
-     *
-     * @param dayOfWeek
-     * @param cycle
+     * todo 数据可以从配置好的地方进行获取
      * @return
      */
-    public boolean verifyCycle(String dayOfWeek, String[] cycle) {
-        return Arrays.asList(cycle).contains(dayOfWeek);
+    private List<TaskData> getTaskList() {
+        TaskData taskData = new TaskData();
+        taskData.setActionType(0);//开关WIFI
+        taskData.setStartTime("08:30:00");
+        taskData.setEndTime("22:00:00");
+        taskData.setCycleType(2); //周一~周五
+        List<TaskData> taskDataList = new ArrayList<>();
+        taskDataList.add(taskData);
+        return taskDataList;
     }
 
     /**
@@ -107,27 +74,156 @@ public class LongRunningService extends Service {
         return whichDay;
     }
 
+    public void switchWIFI(boolean enabled) {
+        WifiManager wifiManager = (WifiManager) longRunningService.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        boolean wifiState = wifiManager.isWifiEnabled();
+        if (wifiState) {
+            if (enabled) {
+                Log.e("switchWIFI", " 当前WIFI已开启，无需重复开启");
+                FileLogWriter.testLog("switchWIFI: 当前WIFI已开启，无需重复开启");
+            } else {
+                FileLogWriter.testLog("switchWIFI: 当前WIFI已开启，关闭WIFI...");
+            }
+        } else {
+            if (enabled) {
+                Log.e("switchWIFI", "当前WIFI已关闭，开启WIFI...");
+                FileLogWriter.testLog("switchWIFI:当前WIFI已关闭，开启WIFI...");
+            } else {
+                FileLogWriter.testLog("switchWIFI: 当前WIFI已关闭，无需重复关闭");
+            }
+        }
+        if (!String.valueOf(wifiState).equals(String.valueOf(enabled))) {//当前状态不一致，修改之
+            wifiManager.setWifiEnabled(enabled);
+        }
+    }
+
+    public boolean verifyCycle(TaskData taskData) {
+        int cycleType = taskData.getCycleType();
+        boolean verified = false;
+        long dayOfWeek;
+        switch (cycleType) {
+            case 0://0:一次 1：每天 2:周一~周五 3:法定工作日 4:自定义（列表）
+                verified = true;
+                break;
+            case 1://每天
+                verified = true;
+                break;
+            case 2://周一~周五
+                dayOfWeek = dayOfWeek();
+                if (dayOfWeek >= MONDAY_INDEX_OF_WEEK && dayOfWeek <= FRIDAY_INDEX_OF_WEEK) {
+                    verified = true;
+                }
+                break;
+            case 3://法定工作日  todo 还没有实现
+                break;
+            case 4://自定义（列表）一周7天自己选择
+                dayOfWeek = dayOfWeek();
+                String[] customCycle = taskData.getCustomerCycle();
+                verified = Arrays.asList(customCycle).contains(String.valueOf(dayOfWeek));
+                break;
+            default:
+                //其他类型
+        }
+        return verified;
+    }
+
     /**
-     * todo 这个需要设置
+     *
+     * @param taskData
      * @return
      */
-    public String[] getCycle() {
-        String[] cycle = {"2","3","4","5","6"};// 1=Sunday,2=Monday,,,7=Saturday。
-        return cycle;
+    public boolean needEnableWIFI(TaskData taskData) {
+        boolean enabled = false;
+        boolean cycleVerified = verifyCycle(taskData);
+        String dayOfWeek = String.valueOf(dayOfWeek());
+        if (cycleVerified) { //日期符合条件
+            // 8:10 ~22:00 开启WIFI
+            String pattern = "HH:mm:ss";
+            String currentTime = TimeHelper.getCurrentTime(pattern);
+            String firstTime = taskData.getStartTime();
+            String secondTime = taskData.getEndTime();
+            int startTimeCompare = TimeHelper.timeCompare(currentTime, firstTime, pattern);
+            int endTimeCompare = TimeHelper.timeCompare(currentTime, secondTime, pattern);
+            Log.e("currentTime", currentTime);
+            Log.e("startTimeCompare", String.valueOf(startTimeCompare));
+            Log.e("endTimeCompare", String.valueOf(endTimeCompare));
+            FileLogWriter.testLog("startTimeCompare:" + String.valueOf(startTimeCompare));
+            FileLogWriter.testLog("endTimeCompare:" + String.valueOf(endTimeCompare));
+            if (startTimeCompare >= 0 && endTimeCompare < 0) {
+                enabled = true;
+            }
+            FileLogWriter.testLog("enabled:" + String.valueOf(enabled));
+        } else {
+            FileLogWriter.testLog("cycle invalid current dayOfWeek:" + dayOfWeek);
+        }
+        return enabled;
     }
-}
-
-class MyRunnable implements Runnable {
-
-    private LongRunningService longRunningService;
 
     public MyRunnable(LongRunningService longRunningService) {
         this.longRunningService = longRunningService;
     }
 
+    /**
+     * 处理任务
+     */
+    public void processTaskList() {
+        List<TaskData> taskDataList = getTaskList();
+        int taskCount = taskDataList.size();
+        if (taskCount > 0) {
+            //遍历任务
+            for(int i = 0; i < taskCount;i++) {
+                TaskData taskData = taskDataList.get(i);
+                boolean enabled = taskData.isEnabled();
+                if (enabled) { //任务为开启状态，处理之
+                    processSingleTask(taskData);
+                }
+            }
+        } else { //没有任务
+            FileLogWriter.testLog("no task need process");
+        }
+    }
+
+    public void processSwitchWIFITask(TaskData taskData) {
+        boolean needEnable = needEnableWIFI(taskData);
+        switchWIFI(needEnable);
+    }
+
+    /**
+     * todo 还没有实现
+     *  移动流量-WIFI切换
+     * @param taskData
+     */
+    public void processSwitchMobileAndWIFITask(TaskData taskData) {
+
+    }
+
+    /**
+     * todo 还没有实现
+     *  闹钟
+     * @param taskData
+     */
+    public void processAlarmClockTask(TaskData taskData) {
+
+    }
+
+    public void processSingleTask(TaskData taskData) {
+        switch (taskData.getActionType()) {
+            case 0://开关WIFI
+                processSwitchWIFITask(taskData);
+                break;
+            case 1://移动流量-WIFI切换
+                processSwitchMobileAndWIFITask(taskData);
+                break;
+            case 2://闹钟
+                processAlarmClockTask(taskData);
+                break;
+            default:
+                FileLogWriter.testLog("current task actionType:" + taskData.getActionType());
+        }
+    }
+
     @Override
     public void run() {
-        boolean needEnable = longRunningService.needEnableWIFI();
-        longRunningService.switchWifi(needEnable);
+        processTaskList();
     }
 }
