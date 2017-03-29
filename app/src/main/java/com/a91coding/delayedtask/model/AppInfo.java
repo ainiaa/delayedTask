@@ -1,4 +1,4 @@
-package com.a91coding.delayedtask.model;
+package com.a91coding.delayedTask.model;
 
 import android.graphics.drawable.Drawable;
 

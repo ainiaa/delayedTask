@@ -1,4 +1,4 @@
-package com.a91coding.delayedtask.util;
+package com.a91coding.delayedTask.util;
 
 import android.os.Environment;
 import android.support.annotation.NonNull;
@@ -71,7 +71,7 @@ public class FileLogWriter {
             public void run() {
                 boolean sdCardExist = Environment.getExternalStorageState().equals(
                         android.os.Environment.MEDIA_MOUNTED);
-                String folderPath = "";
+                String folderPath;
                 if (sdCardExist) {
                     //TextUtils为android自带的帮助类
                     if (TextUtils.isEmpty(folder)) {
@@ -156,9 +156,6 @@ public class FileLogWriter {
 
             byte[] buffer = new byte[length];
             fin.read(buffer);
-
-//            res = EncodingUtils.getString(buffer, "UTF-8");
-
             fin.close();
         } catch (Exception e) {
             e.printStackTrace();

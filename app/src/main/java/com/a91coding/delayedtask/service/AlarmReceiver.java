@@ -1,4 +1,4 @@
-package com.a91coding.delayedtask.service;
+package com.a91coding.delayedTask.service;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
