@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.a91coding.delayedtask">
+    package="com.a91coding.delayedTask">
 
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/><!-- 读取数据的权限 -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -20,23 +20,22 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".MainActivity"
+            android:name="com.a91coding.delayedTask.MainActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
         <service
-            android:name=".service.LongRunningService"
+            android:name="com.a91coding.delayedTask.service.LongRunningService"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true" />
         <receiver
-            android:name=".service.AlarmReceiver"
+            android:name="com.a91coding.delayedTask.service.AlarmReceiver"
             android:enabled="true"
-            android:exported="true"></receiver >
+            android:exported="true" />
     </application>
 </manifest>
