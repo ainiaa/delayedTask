@@ -24,13 +24,9 @@ public class FileLogWriter {
 
     public static void log(final String folder, String fileName, String str) {
         SimpleDateFormat tf = new SimpleDateFormat("HH:mm:ss");
-        try {
             str = tf.format(new Date()) + "|" + str;
-            writeFileToSDCard(str.getBytes("UTF-8"), folder, fileName, true, true);
-        } catch (IOException e) {
-            Log.e("IOException", e.getMessage());
-            e.printStackTrace();
-        }
+//            writeFileToSDCard(str.getBytes("UTF-8"), folder, fileName, true, true);
+            writeFileToSDCard(str, folder, fileName, true, true);
     }
 
     public static void testLog(String str) {
@@ -47,12 +43,85 @@ public class FileLogWriter {
             writer.write(write_str);
             writer.close();
         } catch (Exception e) {
-            //e.printStackTrace();
             String name = e.getClass().getName();
             if (name.equals("java.io.FileNotFoundException")) {
                 generateLogFile(fileName);
             }
         }
+    }
+
+    /**
+     * 此方法为android程序写入sd文件文件，用到了android-annotation的支持库@
+     *
+     * @param buffer   写入文件的内容
+     * @param folder   保存文件的文件夹名称,如log；可为null，默认保存在sd卡根目录
+     * @param fileName 文件名称，默认app_log.txt
+     * @param append   是否追加写入，true为追加写入，false为重写文件
+     * @param autoLine 针对追加模式，true为增加时换行，false为增加时不换行
+     */
+    public synchronized static void writeFileToSDCard(@NonNull final String buffer, @Nullable final String folder,
+                                                      @Nullable final String fileName, final boolean append, final boolean autoLine) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                boolean sdCardExist = Environment.getExternalStorageState().equals(
+                        android.os.Environment.MEDIA_MOUNTED);
+                String folderPath;
+                if (sdCardExist) {
+                    //TextUtils为android自带的帮助类
+                    if (TextUtils.isEmpty(folder)) {
+                        //如果folder为空，则直接保存在sd卡的根目录
+                        folderPath = Environment.getExternalStorageDirectory()  + File.separator;
+                    } else {
+                        folderPath = Environment.getExternalStorageDirectory()
+                                + File.separator + folder + File.separator;
+                    }
+                } else {
+                    return;
+                }
+
+                File fileDir = new File(folderPath);
+                if (!fileDir.exists()) {
+                    if (!fileDir.mkdirs()) {
+                        return;
+                    }
+                }
+                File file;
+                //判断文件名是否为空
+                if (TextUtils.isEmpty(fileName)) {
+                    file = new File(folderPath + "app_log.txt");
+                } else {
+                    file = new File(folderPath + fileName);
+                }
+                FileOutputStream out = null;
+                BufferedWriter bw = null;
+                try {
+                    if (append) { //如果为追加则在原来的基础上继续写文件
+                        out = new FileOutputStream(file, true);
+                    } else { //重写文件，覆盖掉原来的数据
+                        out = new FileOutputStream(file);
+                    }
+                    bw = new BufferedWriter(new OutputStreamWriter(out));
+                    bw.append(buffer);
+                    if (autoLine) {
+                        bw.append("\r\n");
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (bw != null) {
+                            bw.close();
+                        }
+                        if (out != null) {
+                            out.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
     }
 
     /**
@@ -108,7 +177,7 @@ public class FileLogWriter {
                         raf.seek(file.length());
                         raf.write(buffer);
                         if (autoLine) {
-                            raf.write("\n".getBytes());
+                            raf.write("\r\n".getBytes());
                         }
                     } else {
                         //重写文件，覆盖掉原来的数据
